@@ -27,6 +27,7 @@ This guide explains how to deploy the EverActive Physiotherapy project to Vercel
 ### 3. Google AI Setup (for AI assistant)
 1. Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Create a new API key or use existing one
+3. Note: The AI assistant has a rule-based fallback that works without an API key, but for full functionality, set up the key
 
 ### 4. Vercel Environment Variables
 Add these in Vercel Dashboard → Settings → Environment Variables:
