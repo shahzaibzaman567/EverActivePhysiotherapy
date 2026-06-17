@@ -131,23 +131,25 @@ export const handleAIChat = async (req, res, next) => {
       console.log('Rule-based response matched');
     }
 
-    // 2️⃣ Try Google AI API (check if key exists)
-    const hasValidKey = process.env.GOOGLE_AI_API_KEY &&
-                        process.env.GOOGLE_AI_API_KEY.trim().length > 0;
+    // 2️⃣ Try AI API (check if key exists)
+    const hasValidKey = (process.env.OPENROUTER_API_KEY || process.env.GOOGLE_AI_API_KEY) &&
+                        (process.env.OPENROUTER_API_KEY?.trim().length > 0 || process.env.GOOGLE_AI_API_KEY?.trim().length > 0);
 
-    console.log('Google AI API Check:', {
-      hasKey: !!process.env.GOOGLE_AI_API_KEY,
-      keyLength: process.env.GOOGLE_AI_API_KEY?.length || 0,
+    console.log('AI API Key Check:', {
+      hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
+      hasGoogleAI: !!process.env.GOOGLE_AI_API_KEY,
+      openRouterLength: process.env.OPENROUTER_API_KEY?.length || 0,
+      googleAILength: process.env.GOOGLE_AI_API_KEY?.length || 0,
       hasValidKey
     });
 
     if (!ruleResponse && hasValidKey) {
       try {
-        console.log('Attempting Google AI API call...');
+        console.log('Attempting AI API call...');
         aiResponse = await getAIChatResponse(history, message);
-        console.log('Google AI API succeeded');
-      } catch (googleAIError) {
-        console.error('Google AI API call failed:', googleAIError.message);
+        console.log('AI API succeeded');
+      } catch (aiError) {
+        console.error('AI API call failed:', aiError.message);
         // Google AI failed — fall through to generic fallback
       }
     }

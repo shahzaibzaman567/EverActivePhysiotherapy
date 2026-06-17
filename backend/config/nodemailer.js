@@ -4,13 +4,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Validate SMTP credentials
-console.log('📧 NODEMAILER INIT:');
-console.log('  EMAIL_USER:', process.env.EMAIL_USER || '❌ NOT SET');
-console.log('  EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '✅ SET (' + process.env.EMAIL_PASSWORD.length + ' chars)' : '❌ NOT SET');
+// Support both EMAIL_USER/EMAIL_PASSWORD and SMTP_USER/SMTP_PASS for flexibility
+const emailUser = process.env.EMAIL_USER || process.env.SMTP_USER;
+const emailPassword = process.env.EMAIL_PASSWORD || process.env.SMTP_PASS;
 
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+console.log('📧 NODEMAILER INIT:');
+console.log('  EMAIL_USER:', emailUser || '❌ NOT SET');
+console.log('  EMAIL_PASSWORD:', emailPassword ? '✅ SET (' + emailPassword.length + ' chars)' : '❌ NOT SET');
+
+if (!emailUser || !emailPassword) {
   console.error('❌ CRITICAL: SMTP credentials not configured. Email sending will FAIL.');
-  console.error('Required env vars: EMAIL_USER, EMAIL_PASSWORD');
+  console.error('Required env vars: EMAIL_USER/SMTP_USER and EMAIL_PASSWORD/SMTP_PASS');
 }
 
 const transporter = nodemailer.createTransport({
@@ -19,8 +23,8 @@ const transporter = nodemailer.createTransport({
   port: process.env.EMAIL_PORT || 465,
   secure: true, // Use TLS for Gmail
   auth: {
-    user: process.env.EMAIL_USER || '',
-    pass: process.env.EMAIL_PASSWORD || '',
+    user: emailUser || '',
+    pass: emailPassword || '',
   },
 });
 
@@ -105,11 +109,11 @@ export const sendEmail = async ({ to, subject, title, bodyHtml, buttonText, butt
     console.log('📨 SENDING EMAIL:');
     console.log('  To:', to);
     console.log('  Subject:', subject);
-    console.log('  From:', process.env.EMAIL_USER);
+    console.log('  From:', emailUser);
     console.log('  Timestamp:', new Date().toISOString());
 
     const mailOptions = {
-      from: `"EverActive Physiotherapy" <${process.env.EMAIL_USER}>`,
+      from: `"EverActive Physiotherapy" <${emailUser}>`,
       to,
       replyTo,
       subject,

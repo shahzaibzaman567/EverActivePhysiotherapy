@@ -47,26 +47,41 @@ app.use(helmet({
 }));
 
 // CORS config for Vercel deployment
+// Support development, localhost, and any Vercel deployment URL
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
   process.env.FRONTEND_URL,
+  // Allow any vercel.app domain for this project
+  /https:\/\/.*\.vercel\.app$/,
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      
+      // Check if origin matches any allowed origin (string or regex)
+      const isAllowed = allowedOrigins.some(allowedOrigin => {
+        if (allowedOrigin instanceof RegExp) {
+          return allowedOrigin.test(origin);
+        }
+        return origin === allowedOrigin;
+      });
+      
+      if (!isAllowed) {
+        const msg = `CORS policy does not allow access from origin: ${origin}`;
+        console.warn(msg);
         return callback(new Error(msg), false);
       }
       return callback(null, true);
     },
     credentials: true,
     optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
@@ -97,7 +112,34 @@ app.use(errorHandler);
 
 // Vercel serverless function handler
 export default async (req, res) => {
-  // Connect to MongoDB before handling request
-  await connectDB();
-  return app(req, res);
+  try {
+    // Connect to MongoDB before handling request
+    await connectDB();
+    
+    // Properly invoke Express app with middleware chain
+    // This ensures all middleware (CORS, bodyParser, error handlers) are executed
+    return new Promise((resolve, reject) => {
+      app.handle(req, res, (err) => {
+        if (err) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: false,
+            message: err.message || 'Internal Server Error',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+          }));
+        }
+        resolve();
+      });
+    });
+  } catch (err) {
+    console.error('Serverless handler error:', err);
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({
+      success: false,
+      message: 'Failed to connect to database or process request',
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    }));
+  }
 };

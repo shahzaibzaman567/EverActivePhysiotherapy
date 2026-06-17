@@ -63,6 +63,8 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
   process.env.FRONTEND_URL, // Deployed frontend url
+  // Allow any vercel.app domain for this project
+  /https:\/\/.*\.vercel\.app$/,
 ].filter(Boolean);
 
 app.use(
@@ -70,14 +72,28 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, or postman in development)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      
+      // Check if origin matches any allowed origin (string or regex)
+      const isAllowed = allowedOrigins.some(allowedOrigin => {
+        if (allowedOrigin instanceof RegExp) {
+          return allowedOrigin.test(origin);
+        }
+        return origin === allowedOrigin;
+      });
+      
+      if (!isAllowed) {
+        const msg = `CORS policy does not allow access from origin: ${origin}`;
+        console.warn(msg);
         return callback(new Error(msg), false);
       }
       return callback(null, true);
     },
     credentials: true,
     optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
   })
 );
 

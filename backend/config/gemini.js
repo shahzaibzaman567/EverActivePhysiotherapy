@@ -22,25 +22,28 @@ Keep your responses friendly, concise, and structured (use bullet points where a
 `;
 
 /**
- * Sends a conversation history to Google AI (Gemini) and retrieves the response.
+ * Sends a conversation history to OpenRouter API (OpenAI-compatible) and retrieves the response.
  * @param {Array} history - Array of message objects: { role: 'user'|'assistant', content: string }
  * @param {string} userMessage - The new user input string
  * @returns {Promise<string>} - The model's response text
  */
 export const getAIChatResponse = async (history, userMessage) => {
   try {
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    // Support both OPENROUTER_API_KEY and GOOGLE_AI_API_KEY for backwards compatibility
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.GOOGLE_AI_API_KEY;
 
-    console.log('Google AI API Check:', {
-      exists: !!apiKey,
+    console.log('AI API Key Check:', {
+      hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
+      hasGoogleAI: !!process.env.GOOGLE_AI_API_KEY,
+      resolved: !!apiKey,
       length: apiKey?.length || 0,
     });
 
     if (!apiKey || apiKey.trim().length === 0) {
-      throw new Error('GOOGLE_AI_API_KEY is not configured');
+      throw new Error('AI API key (OPENROUTER_API_KEY or GOOGLE_AI_API_KEY) is not configured');
     }
 
-    // Format history for DeepSeek (OpenAI-compatible format)
+    // Format history for OpenRouter (OpenAI-compatible format)
     const messages = (history || []).map((msg) => ({
       role: msg.role === 'assistant' ? 'assistant' : 'user',
       content: msg.content || '',
@@ -59,46 +62,46 @@ export const getAIChatResponse = async (history, userMessage) => {
       },
     ];
 
-    console.log('Sending message to Google AI API:', {
-      userMessage,
+    console.log('Sending message to AI API:', {
+      userMessage: userMessage.substring(0, 50) + '...',
       historyLength: messages.length,
-      endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      model: 'openai/gpt-3.5-turbo'
     });
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://everactivephysiotherapy.com',
+        'X-Title': 'EverActive Physiotherapy',
       },
       body: JSON.stringify({
-        contents: fullMessages.map(msg => ({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }]
-        })),
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 500,
-          topP: 1,
-        },
+        model: 'openai/gpt-3.5-turbo',
+        messages: fullMessages,
+        temperature: 0.2,
+        max_tokens: 500,
+        top_p: 1,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`Google AI API Error: ${response.status} - ${JSON.stringify(errorData)}`);
+      throw new Error(`AI API Error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
-    const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const responseText = data?.choices?.[0]?.message?.content;
 
     if (!responseText) {
-      throw new Error('No response content from Google AI API');
+      throw new Error('No response content from AI API');
     }
 
-    console.log('Google AI API response received successfully');
+    console.log('AI API response received successfully');
     return responseText;
   } catch (error) {
-    console.error('Google AI API Error:', {
+    console.error('AI API Error:', {
       message: error.message,
       name: error.name,
       code: error.code || error.response?.status,

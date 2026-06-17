@@ -9,9 +9,32 @@ const getHeaders = (token) => {
 };
 
 const handleResponse = async (res) => {
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'An unexpected error occurred');
-  return data;
+  // First, check if the response content-type is JSON
+  const contentType = res.headers.get('content-type');
+  
+  if (!contentType || !contentType.includes('application/json')) {
+    // If not JSON, try to read as text and provide a helpful error
+    const text = await res.text();
+    console.error('Non-JSON response:', { status: res.status, text });
+    
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status} ${res.statusText}. Response was not JSON.`);
+    }
+    
+    // If it's a success but not JSON, this is still an error
+    throw new Error('API returned a success response but not in JSON format');
+  }
+
+  try {
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || `API error: ${res.status} ${res.statusText}`);
+    }
+    return data;
+  } catch (parseError) {
+    console.error('JSON parse error:', parseError);
+    throw new Error('Failed to parse API response as JSON');
+  }
 };
 
 // ─── Auth ────────────────────────────────────────────────────────────────────

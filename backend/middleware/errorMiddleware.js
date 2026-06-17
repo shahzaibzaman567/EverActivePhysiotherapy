@@ -1,10 +1,22 @@
 // Global error handler middleware
 export const errorHandler = (err, req, res, next) => {
+  // Ensure we always send JSON responses
   let error = { ...err };
   error.message = err.message;
 
   // Log error for the developer
   console.error('Error Details:', err);
+
+  // Handle CORS errors
+  if (err.message && err.message.includes('CORS policy')) {
+    const statusCode = 403;
+    return res.status(statusCode).json({
+      success: false,
+      message: 'CORS policy violation - request origin not allowed',
+      status: statusCode,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
 
   // Mongoose Bad ObjectId
   if (err.name === 'CastError') {
@@ -33,12 +45,20 @@ export const errorHandler = (err, req, res, next) => {
     error = { status: 400, message };
   }
 
+  // JWT/Auth errors
+  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+    error = { status: 401, message: 'Invalid or expired token' };
+  }
+
   const statusCode = error.status || err.statusCode || 500;
   const responseMessage = error.message || 'Internal Server Error';
 
+  // Always set JSON content type and return JSON
+  res.setHeader('Content-Type', 'application/json');
   res.status(statusCode).json({
     success: false,
     message: responseMessage,
+    status: statusCode,
     // Include stack trace only in development mode
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
@@ -47,6 +67,6 @@ export const errorHandler = (err, req, res, next) => {
 // 404 Not Found fallback middleware
 export const notFound = (req, res, next) => {
   const error = new Error(`Not Found - ${req.originalUrl}`);
-  res.status(404);
+  error.status = 404;
   next(error);
 };
