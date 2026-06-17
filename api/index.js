@@ -19,7 +19,11 @@ let cachedDb = null;
 
 const connectDB = async () => {
   if (cachedDb) return cachedDb;
-  const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/everactive_physio', {
+  const uri = process.env.MONGO_URI;
+  if (!uri) {
+    throw new Error('MONGO_URI environment variable is not set');
+  }
+  const conn = await mongoose.connect(uri, {
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
   });
@@ -31,22 +35,9 @@ const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:5175',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-  'http://127.0.0.1:5175',
-  process.env.FRONTEND_URL,
-  /https:\/\/.*\.vercel\.app$/,
-].filter(Boolean);
-
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    const isAllowed = allowedOrigins.some(a => a instanceof RegExp ? a.test(origin) : origin === a);
-    if (!isAllowed) return callback(new Error(`CORS policy does not allow access from origin: ${origin}`), false);
     callback(null, true);
   },
   credentials: true,
@@ -58,8 +49,26 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ success: false, message: 'Invalid JSON in request body' });
+  }
+  next();
+});
+
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to EverActive Physiotherapy Clinic API Gateway', status: 'Operational' });
+});
+
+app.get('/api/health', (req, res) => {
+  const mongoState = mongoose.connection.readyState;
+  const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  res.json({
+    success: true,
+    message: 'EverActive API is operational',
+    mongodb: states[mongoState] || 'unknown',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use('/api/auth', authRoutes);
@@ -79,7 +88,10 @@ export default async (req, res) => {
   } catch (err) {
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ success: false, message: 'Database connection failed' }));
+    res.end(JSON.stringify({
+      success: false,
+      message: process.env.NODE_ENV === 'development' ? err.message : 'Database connection failed',
+    }));
     return;
   }
   return new Promise((resolve) => {
