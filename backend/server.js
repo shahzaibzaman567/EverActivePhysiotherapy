@@ -60,8 +60,10 @@ app.use(helmet());
 const allowedOrigins = [
   'http://localhost:5173', // Local Vite
   'http://localhost:5174', // Local Vite (if 5173 is in use)
+  'http://localhost:5175', // Local Vite (if 5173/5174 are in use)
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
   process.env.FRONTEND_URL, // Deployed frontend url
   // Allow any vercel.app domain for this project
   /https:\/\/.*\.vercel\.app$/,
@@ -92,8 +94,6 @@ app.use(
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
   })
 );
 
