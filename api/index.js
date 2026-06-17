@@ -114,6 +114,13 @@ app.use(errorHandler);
 
 // Vercel serverless function handler
 export default async (req, res) => {
+  // Health check — no DB needed
+  if (req.url === '/api/health') {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ success: true, message: 'API is alive' }));
+    return;
+  }
+
   try {
     await connectDB();
   } catch (err) {
