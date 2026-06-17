@@ -12,21 +12,15 @@ import aiRoutes from '../backend/routes/aiRoutes.js';
 import contactRoutes from '../backend/routes/contactRoutes.js';
 import { errorHandler, notFound } from '../backend/middleware/errorMiddleware.js';
 
-const app = express();
-
-let mongooseConnection = null;
-const connectDB = async () => {
-  if (mongooseConnection) return mongooseConnection;
-  const uri = process.env.MONGO_URI;
-  if (!uri) return null;
-  mongooseConnection = mongoose.connect(uri, {
+const MONGO_URI = process.env.MONGO_URI;
+if (MONGO_URI) {
+  mongoose.connect(MONGO_URI, {
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
-  });
-  return mongooseConnection;
-};
+  }).catch(() => {});
+}
 
-connectDB().catch(() => {});
+const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
@@ -41,26 +35,27 @@ app.use((err, req, res, next) => {
 });
 
 app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to EverActive Physiotherapy Clinic API Gateway', status: 'Operational' });
+  res.json({ message: 'EverActive Physiotherapy Clinic API Gateway', status: 'Operational' });
 });
 
 app.get('/api/health', (req, res) => {
   const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
   res.json({
     success: true,
-    message: 'EverActive API is operational',
+    message: 'API is operational',
     mongodb: states[mongoose.connection.readyState] || 'unknown',
     timestamp: new Date().toISOString(),
   });
 });
 
 app.use('/api', (req, res, next) => {
-  const state = mongoose.connection.readyState;
-  if (state === 0) {
-    return res.status(503).json({ success: false, message: 'Database not connected. Please set MONGO_URI environment variable.' });
-  }
-  if (state === 2 || state === 3) {
-    return res.status(503).json({ success: false, message: 'Database is connecting, please retry.' });
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: !MONGO_URI
+        ? 'MONGO_URI not configured. Please set it in Vercel environment variables.'
+        : 'Database not connected. Please ensure MONGO_URI is correct and MongoDB allows access from Vercel IPs.',
+    });
   }
   next();
 });
