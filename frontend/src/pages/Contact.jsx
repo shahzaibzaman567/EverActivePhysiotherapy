@@ -91,7 +91,7 @@ export default function Contact() {
       {/* Main Content */}
       <section className="section" style={{ background: '#fff' }}>
         <div className="container">
-          <div className="contact-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: '4rem', alignItems: 'start' }}>
+          <div className="contact-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: '2.5rem', alignItems: 'start' }}>
             
             {/* Contact details side */}
             <div>
@@ -138,14 +138,14 @@ export default function Contact() {
             </div>
 
             {/* Contact form side */}
-            <div className="card" style={{ padding: '2.5rem', border: '1.5px solid var(--clr-border)', borderRadius: 'var(--radius-xl)' }}>
+            <div className="card" style={{ padding: 'clamp(1.25rem, 5vw, 2.5rem)', border: '1.5px solid var(--clr-border)', borderRadius: 'var(--radius-xl)' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>Send Us a Message</h3>
               <p style={{ color: 'var(--clr-text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
                 Share a few details below and we’ll respond within 24–48 hours.
               </p>
               
               <form onSubmit={handleSubmit}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">First Name*</label>
                     <input
@@ -255,7 +255,7 @@ export default function Contact() {
               <p>Quick answers to common questions about our physiotherapy and rehabilitation services.</p>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '2rem' }}>
               {faqs.map((faq, i) => (
                 <div key={i} style={{ background: '#f8fafc', padding: '1.75rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--clr-border)' }}>
                   <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--clr-text)', marginBottom: '0.75rem' }}>{faq.q}</h4>
