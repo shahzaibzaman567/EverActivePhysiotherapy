@@ -110,6 +110,7 @@ const bootstrapAdmin = async () => {
   try {
     let admin = await User.findOne({ email: adminEmail });
     if (!admin) {
+      // Create admin — password will be hashed by the pre-save hook
       admin = await User.create({
         name: 'EverActive Admin',
         email: adminEmail,
@@ -118,15 +119,26 @@ const bootstrapAdmin = async () => {
       });
       console.log('Admin account created successfully.');
     } else {
+      // Only update role without re-hashing password on every restart
+      // Only force-update role/email, never touch password unless it actually needs reset
+      let changed = false;
+      if (admin.role !== 'admin') {
+        admin.role = 'admin';
+        changed = true;
+      }
       if (!isAdminEmail(admin.email)) {
         admin.email = adminEmail;
+        changed = true;
       }
-      admin.role = 'admin';
-      admin.password = adminPassword;
-      await admin.save();
+      if (changed) {
+        // Use updateOne to bypass pre-save hook — we are NOT changing the password
+        await User.updateOne(
+          { _id: admin._id },
+          { $set: { role: 'admin', email: adminEmail } }
+        );
+      }
       console.log('Admin account is ready.');
     }
-
   } catch (error) {
     console.error('Admin bootstrap failed:', error.message);
   }

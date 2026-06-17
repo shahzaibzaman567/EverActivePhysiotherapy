@@ -9,10 +9,16 @@ const contactRateLimiter = rateLimit({
   max: 10,
   message: {
     success: false,
-    message: 'Too many contact form submissions, please try again after 15 minutes.',
+    message: 'Too many contact form submissions. Please try again after 15 minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      message: 'Too many contact form submissions. Please try again after 15 minutes.',
+    });
+  },
 });
 
 router.post('/', contactRateLimiter, sendContactMessage);

@@ -37,7 +37,6 @@ function PrivateRoute({ children }) {
 
 function AdminRoute({ children }) {
   const { user, loading } = useAuth();
-  const isAdmin = user?.role === 'admin' && user?.email?.toLowerCase() === 'shahzaibzaman465@gmail.com';
 
   if (loading) {
     return (
@@ -47,7 +46,7 @@ function AdminRoute({ children }) {
     );
   }
 
-  return isAdmin ? children : <Navigate to="/" replace />;
+  return user?.role === 'admin' ? children : <Navigate to="/" replace />;
 }
 
 // Layout wrapper to inject Navbar & Footer on public/patient pages

@@ -1,72 +1,97 @@
-// Global error handler middleware
+/**
+ * Global error handler — ALWAYS returns JSON, never HTML.
+ * Must be registered after all routes with 4 parameters (err, req, res, next).
+ */
 export const errorHandler = (err, req, res, next) => {
-  // Ensure we always send JSON responses
-  let error = { ...err };
-  error.message = err.message;
-
-  // Log error for the developer
-  console.error('Error Details:', err);
-
-  // Handle CORS errors
-  if (err.message && err.message.includes('CORS policy')) {
-    const statusCode = 403;
-    return res.status(statusCode).json({
-      success: false,
-      message: 'CORS policy violation - request origin not allowed',
-      status: statusCode,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    });
+  // Defensive: if headers already sent, delegate to default Express handler
+  if (res.headersSent) {
+    return next(err);
   }
 
-  // Mongoose Bad ObjectId
+  // Force JSON content type on every error response
+  res.setHeader('Content-Type', 'application/json');
+
+  let statusCode = err.status || err.statusCode || 500;
+  let message = err.message || 'Internal Server Error';
+
+  // ── Mongoose / MongoDB errors ──────────────────────────────────────────
+  // Bad ObjectId (e.g. invalid _id format)
   if (err.name === 'CastError') {
-    const message = `Resource not found with id of ${err.value}`;
-    error = { status: 404, message };
+    statusCode = 404;
+    message = `Resource not found (invalid id: ${err.value})`;
   }
 
-  // Mongoose Duplicate Key Error (Code 11000)
+  // Duplicate key (code 11000)
   if (err.code === 11000) {
-    let message = 'Duplicate field value entered';
-    
-    // Check if duplicate is on the Appointment unique slot index
-    if (err.message && err.message.includes('appointments') && err.message.includes('doctor_1_date_1_slot_1')) {
-      message = 'This time slot has already been booked for this doctor. Please choose a different date or time slot.';
+    statusCode = 409;
+    if (
+      err.message &&
+      err.message.includes('appointments') &&
+      err.message.includes('doctor_1_date_1_slot_1')
+    ) {
+      message =
+        'This time slot is already booked. Please choose a different date or time slot.';
     } else {
-      // Generic duplicate field name parsing
       const fields = Object.keys(err.keyValue || {});
       message = `A record with this ${fields.join(', ')} already exists.`;
     }
-    error = { status: 409, message }; // 409 Conflict
   }
 
-  // Mongoose Validation Error
+  // Mongoose validation errors
   if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map((val) => val.message).join(', ');
-    error = { status: 400, message };
+    statusCode = 400;
+    message = Object.values(err.errors)
+      .map((v) => v.message)
+      .join(', ');
   }
 
-  // JWT/Auth errors
-  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
-    error = { status: 401, message: 'Invalid or expired token' };
+  // ── JWT errors ─────────────────────────────────────────────────────────
+  if (err.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    message = 'Invalid authentication token';
+  }
+  if (err.name === 'TokenExpiredError') {
+    statusCode = 401;
+    message = 'Authentication token has expired. Please log in again.';
   }
 
-  const statusCode = error.status || err.statusCode || 500;
-  const responseMessage = error.message || 'Internal Server Error';
+  // ── CORS errors ────────────────────────────────────────────────────────
+  if (err.message && err.message.includes('CORS policy')) {
+    statusCode = 403;
+    message = 'CORS policy: request origin not allowed';
+  }
 
-  // Always set JSON content type and return JSON
-  res.setHeader('Content-Type', 'application/json');
+  // ── Syntax / body parse errors ─────────────────────────────────────────
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    statusCode = 400;
+    message = 'Invalid JSON in request body';
+  }
+
+  // Log all 5xx errors
+  if (statusCode >= 500) {
+    console.error(`[${new Date().toISOString()}] ${statusCode} ${req.method} ${req.originalUrl}`);
+    console.error('Error:', err.message);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(err.stack);
+    }
+  }
+
   res.status(statusCode).json({
     success: false,
-    message: responseMessage,
+    message,
     status: statusCode,
-    // Include stack trace only in development mode
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    // Stack trace only in development — never leak internals to production
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
   });
 };
 
-// 404 Not Found fallback middleware
+/**
+ * 404 fallback — catches any request that didn't match a route.
+ * Always returns JSON (prevents Express default HTML 404 page).
+ */
 export const notFound = (req, res, next) => {
-  const error = new Error(`Not Found - ${req.originalUrl}`);
+  res.setHeader('Content-Type', 'application/json');
+  const error = new Error(`Route not found: ${req.method} ${req.originalUrl}`);
   error.status = 404;
   next(error);
 };
