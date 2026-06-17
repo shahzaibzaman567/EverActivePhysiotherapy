@@ -115,33 +115,17 @@ app.use(errorHandler);
 // Vercel serverless function handler
 export default async (req, res) => {
   try {
-    // Connect to MongoDB before handling request
     await connectDB();
-    
-    // Properly invoke Express app with middleware chain
-    // This ensures all middleware (CORS, bodyParser, error handlers) are executed
-    return new Promise((resolve, reject) => {
-      app.handle(req, res, (err) => {
-        if (err) {
-          res.statusCode = 500;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({
-            success: false,
-            message: err.message || 'Internal Server Error',
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-          }));
-        }
-        resolve();
-      });
-    });
   } catch (err) {
-    console.error('Serverless handler error:', err);
+    console.error('DB connection error:', err);
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({
       success: false,
-      message: 'Failed to connect to database or process request',
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      message: 'Database connection failed',
     }));
+    return;
   }
+
+  app(req, res);
 };
