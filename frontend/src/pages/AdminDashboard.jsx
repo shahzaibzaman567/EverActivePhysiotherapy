@@ -816,6 +816,19 @@ export default function AdminDashboard() {
                                   >
                                     Doctor
                                   </button>
+                                  {u.role === 'user' && (
+                                    <button
+                                      className="btn btn-primary btn-sm"
+                                      onClick={() => {
+                                        if (window.confirm(`Make ${u.name} an Admin? They will have full control of the dashboard.`)) {
+                                          handleUpdateRole(u._id, 'admin');
+                                        }
+                                      }}
+                                      style={{ padding: '.25rem .5rem', fontSize: '.75rem' }}
+                                    >
+                                      Make Admin
+                                    </button>
+                                  )}
                                 </div>
                               ) : (
                                 <span style={{ fontSize: '.78rem', color: 'var(--clr-text-muted)', fontStyle: 'italic' }}>
@@ -881,6 +894,19 @@ export default function AdminDashboard() {
                                 >
                                   Doctor
                                 </button>
+                                {u.role === 'user' && (
+                                  <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => {
+                                      if (window.confirm(`Make ${u.name} an Admin? They will have full control of the dashboard.`)) {
+                                        handleUpdateRole(u._id, 'admin');
+                                      }
+                                    }}
+                                    style={{ padding: '.4rem .5rem', fontSize: '.75rem' }}
+                                  >
+                                    Make Admin
+                                  </button>
+                                )}
                               </div>
                             </>
                           ) : (
