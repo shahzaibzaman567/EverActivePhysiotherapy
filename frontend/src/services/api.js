@@ -1,5 +1,4 @@
-// Central API configuration — all calls go through this base URL
-// For Vercel deployment, use relative path (/api) since frontend and backend are on same domain
+// Central API configuration
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const getHeaders = (token) => {
@@ -9,35 +8,37 @@ const getHeaders = (token) => {
 };
 
 const handleResponse = async (res) => {
-  // First, check if the response content-type is JSON
-  const contentType = res.headers.get('content-type');
-  
-  if (!contentType || !contentType.includes('application/json')) {
-    // If not JSON, try to read as text and provide a helpful error
-    const text = await res.text();
-    console.error('Non-JSON response:', { status: res.status, text });
-    
-    if (!res.ok) {
-      throw new Error(`API error: ${res.status} ${res.statusText}. Response was not JSON.`);
-    }
-    
-    // If it's a success but not JSON, this is still an error
-    throw new Error('API returned a success response but not in JSON format');
-  }
+  const contentType = res.headers.get('content-type') || '';
 
-  try {
+  // Happy path — JSON response
+  if (contentType.includes('application/json')) {
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.message || `API error: ${res.status} ${res.statusText}`);
+      throw new Error(data.message || `Request failed (${res.status})`);
     }
     return data;
-  } catch (parseError) {
-    console.error('JSON parse error:', parseError);
-    throw new Error('Failed to parse API response as JSON');
   }
+
+  // Non-JSON response (HTML error page, gateway timeout, etc.)
+  // Log it for debugging but show the user a clean message
+  const text = await res.text().catch(() => '');
+  console.error(`[API] Non-JSON response ${res.status} for ${res.url}:`, text.slice(0, 200));
+
+  if (res.status === 503) {
+    throw new Error('Service temporarily unavailable. Please try again in a moment.');
+  }
+  if (res.status === 502 || res.status === 504) {
+    throw new Error('Server is starting up. Please wait a moment and try again.');
+  }
+  if (!res.ok) {
+    throw new Error(`Something went wrong (${res.status}). Please try again.`);
+  }
+
+  // 2xx but not JSON — shouldn't happen but handle gracefully
+  throw new Error('Unexpected response format. Please try again.');
 };
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 export const apiSignup = (body) =>
   fetch(`${BASE_URL}/auth/signup`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse);
 
@@ -56,11 +57,11 @@ export const apiForgotPassword = (email) =>
 export const apiResetPassword = (token, password) =>
   fetch(`${BASE_URL}/auth/reset-password/${token}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify({ password }) }).then(handleResponse);
 
-// ─── Contact ─────────────────────────────────────────────────────────────────
+// ─── Contact ──────────────────────────────────────────────────────────────────
 export const apiSendContactMessage = (body) =>
   fetch(`${BASE_URL}/contact`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) }).then(handleResponse);
 
-// ─── Doctors ─────────────────────────────────────────────────────────────────
+// ─── Doctors ──────────────────────────────────────────────────────────────────
 export const apiGetDoctors = () =>
   fetch(`${BASE_URL}/doctors`).then(handleResponse);
 
@@ -92,7 +93,7 @@ export const apiUpdateStatus = (token, id, status) =>
 export const apiReschedule = (token, id, body) =>
   fetch(`${BASE_URL}/appointments/${id}/reschedule`, { method: 'PUT', headers: getHeaders(token), body: JSON.stringify(body) }).then(handleResponse);
 
-// ─── Reviews ─────────────────────────────────────────────────────────────────
+// ─── Reviews ──────────────────────────────────────────────────────────────────
 export const apiGetReviews = () =>
   fetch(`${BASE_URL}/reviews`).then(handleResponse);
 
