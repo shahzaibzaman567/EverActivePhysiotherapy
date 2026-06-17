@@ -266,16 +266,17 @@ export default function Contact() {
           </div>
 
           {/* Map Section */}
-          <div className="contact-map" style={{ marginTop: '5rem', borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-lg)', border: '1.5px solid var(--clr-border)', height: 380 }}>
+          <div className="contact-map" style={{ marginTop: '5rem', borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-lg)', border: '1.5px solid var(--clr-border)', height: 380, position: 'relative' }}>
             <iframe
-              src="https://www.google.com/maps/embed?pb=!11m18!1m12!1m3!1d151978.89139598285!2d-2.4282361664161726!3d53.50689438902506!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x487a0c10842db131%3A0xd68925527a29930f!2sGreater%20Manchester%2C%20UK!5e0!3m2!1sen!2sus!4v1718428800000!5m2!1sen!2sus"
+              src="https://www.google.com/maps/embed?pb=!11m18!1m12!1m3!1d151978.89139598285!2d-2.4282361664161726!3d53.50689438902506!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x487a0c10842db131%3A0xd68925527a29930f!2sGreater%20Manchester%2C%20UK!5e0!3m2!1sen!2sus!4v1718428800000!5m2!1sen!2sus&gesturehandling=greedy"
               width="100%"
               height="100%"
-              style={{ border: 0 }}
+              style={{ border: 0, display: 'block' }}
               allowFullScreen=""
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               title="Clinic location map"
+              allow="gesturedetection"
             />
           </div>
 
