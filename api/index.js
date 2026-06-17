@@ -1,9 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import { errorHandler, notFound } from '../backend/middleware/errorMiddleware.js';
 
 import authRoutes from '../backend/routes/authRoutes.js';
 import doctorRoutes from '../backend/routes/doctorRoutes.js';
@@ -12,40 +10,26 @@ import reviewRoutes from '../backend/routes/reviewRoutes.js';
 import adminRoutes from '../backend/routes/adminRoutes.js';
 import aiRoutes from '../backend/routes/aiRoutes.js';
 import contactRoutes from '../backend/routes/contactRoutes.js';
-
-dotenv.config();
-
-let cachedDb = null;
-
-const connectDB = async () => {
-  if (cachedDb) return cachedDb;
-  const uri = process.env.MONGO_URI;
-  if (!uri) {
-    throw new Error('MONGO_URI environment variable is not set');
-  }
-  const conn = await mongoose.connect(uri, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  });
-  cachedDb = conn;
-  return conn;
-};
+import { errorHandler, notFound } from '../backend/middleware/errorMiddleware.js';
 
 const app = express();
 
+let mongooseConnection = null;
+const connectDB = async () => {
+  if (mongooseConnection) return mongooseConnection;
+  const uri = process.env.MONGO_URI;
+  if (!uri) return null;
+  mongooseConnection = mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  });
+  return mongooseConnection;
+};
+
+connectDB().catch(() => {});
+
 app.use(helmet({ contentSecurityPolicy: false }));
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    callback(null, true);
-  },
-  credentials: true,
-  optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -61,14 +45,24 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  const mongoState = mongoose.connection.readyState;
   const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
   res.json({
     success: true,
     message: 'EverActive API is operational',
-    mongodb: states[mongoState] || 'unknown',
+    mongodb: states[mongoose.connection.readyState] || 'unknown',
     timestamp: new Date().toISOString(),
   });
+});
+
+app.use('/api', (req, res, next) => {
+  const state = mongoose.connection.readyState;
+  if (state === 0) {
+    return res.status(503).json({ success: false, message: 'Database not connected. Please set MONGO_URI environment variable.' });
+  }
+  if (state === 2 || state === 3) {
+    return res.status(503).json({ success: false, message: 'Database is connecting, please retry.' });
+  }
+  next();
 });
 
 app.use('/api/auth', authRoutes);
@@ -82,30 +76,4 @@ app.use('/api/contact', contactRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-export default async (req, res) => {
-  try {
-    await connectDB();
-  } catch (err) {
-    res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({
-      success: false,
-      message: process.env.NODE_ENV === 'development' ? err.message : 'Database connection failed',
-    }));
-    return;
-  }
-  return new Promise((resolve) => {
-    res.on('finish', resolve);
-    res.on('close', resolve);
-    try {
-      app.handle(req, res);
-    } catch (err) {
-      if (!res.headersSent) {
-        res.statusCode = 500;
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ success: false, message: 'Internal server error' }));
-      }
-      resolve();
-    }
-  });
-};
+export default app;
