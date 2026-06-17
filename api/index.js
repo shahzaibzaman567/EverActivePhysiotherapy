@@ -114,13 +114,6 @@ app.use(errorHandler);
 
 // Vercel serverless function handler
 export default async (req, res) => {
-  // Health check — no DB needed
-  if (req.url === '/api/health') {
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ success: true, message: 'API is alive' }));
-    return;
-  }
-
   try {
     await connectDB();
   } catch (err) {
@@ -134,5 +127,13 @@ export default async (req, res) => {
     return;
   }
 
-  app(req, res);
+  // Express 4 dispatches middleware synchronously, but route handlers
+  // are async (await User.findOne(), etc.). Vercel must wait until the
+  // response is actually sent, so we wrap in a Promise that resolves
+  // on the 'finish' event.
+  return new Promise((resolve) => {
+    res.on('finish', resolve);
+    res.on('close', resolve);
+    app(req, res);
+  });
 };
